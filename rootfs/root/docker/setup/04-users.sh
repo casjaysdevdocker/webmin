@@ -24,10 +24,10 @@ set -o pipefail
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Set env variables
 exitCode=0
-
+PASSWORD="${ROOT_PASS:-password}"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Predifined actions
-echo "password" | passwd "root" --stdin
+echo -e "$PASSWORD\n$PASSWORD" | passwd "root"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Main script
 
