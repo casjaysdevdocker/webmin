@@ -1,8 +1,7 @@
-# syntax=docker/dockerfile:1
 # Docker image for webmin using the debian template
 ARG IMAGE_NAME="webmin"
 ARG PHP_SERVER="webmin"
-ARG BUILD_DATE="202409071429"
+ARG BUILD_DATE="202509161151"
 ARG LANGUAGE="en_US.UTF-8"
 ARG TIMEZONE="America/New_York"
 ARG WWW_ROOT_DIR="/usr/local/share/httpd/default"
@@ -10,7 +9,7 @@ ARG DEFAULT_FILE_DIR="/usr/local/share/template-files"
 ARG DEFAULT_DATA_DIR="/usr/local/share/template-files/data"
 ARG DEFAULT_CONF_DIR="/usr/local/share/template-files/config"
 ARG DEFAULT_TEMPLATE_DIR="/usr/local/share/template-files/defaults"
-ARG DEBIAN_FRONTEND=noninteractive
+ARG PATH="/usr/local/etc/docker/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 ARG USER="root"
 ARG SHELL_OPTS="set -e -o pipefail"
@@ -32,6 +31,7 @@ ARG BUILD_VERSION="${BUILD_DATE}"
 FROM tianon/gosu:latest AS gosu
 FROM ${PULL_URL}:${DISTRO_VERSION} AS build
 ARG TZ
+ARG PATH
 ARG USER
 ARG LICENSE
 ARG TIMEZONE
@@ -59,6 +59,7 @@ ARG PACK_LIST=" "
 
 ENV ENV=~/.profile
 ENV SHELL="/bin/sh"
+ENV PATH="${PATH}"
 ENV TZ="${TIMEZONE}"
 ENV TIMEZONE="${TZ}"
 ENV LANG="${LANGUAGE}"
@@ -71,6 +72,10 @@ USER ${USER}
 WORKDIR /root
 
 COPY ./rootfs/usr/local/bin/. /usr/local/bin/
+
+RUN set -e; \
+  echo "Updating the system and ensuring bash is installed"; \
+  pkmgr update;pkmgr install bash
 
 RUN set -e; \
   echo "Setting up prerequisites"; \
@@ -90,7 +95,6 @@ RUN echo "Initializing the system"; \
 RUN echo "Creating and editing system files "; \
   $SHELL_OPTS; \
   [ -f "/root/.profile" ] || touch "/root/.profile"; \
-  mkdir -p "${DEFAULT_DATA_DIR}" "${DEFAULT_CONF_DIR}" "${DEFAULT_TEMPLATE_DIR}" "/root/docker/setup" "/etc/profile.d"; \
   if [ -f "/root/docker/setup/01-system.sh" ];then echo "Running the system script";/root/docker/setup/01-system.sh||{ echo "Failed to execute /root/docker/setup/01-system.sh" >&2 && exit 10; };echo "Done running the system script";fi; \
   echo ""
 
@@ -122,13 +126,12 @@ RUN echo "Updating system files "; \
   pip_bin="$(command -v python3 2>/dev/null || command -v python2 2>/dev/null || command -v python 2>/dev/null || true)"; \
   py_version="$(command $pip_bin --version | sed 's|[pP]ython ||g' | awk -F '.' '{print $1$2}' | grep '[0-9]' || true)"; \
   [ "$py_version" -gt "310" ] && pip_opts="--break-system-packages " || pip_opts=""; \
-  if [ -n "$pip_bin" ];then $pip_bin -m pip install --break-system-packages certbot-dns-rfc2136 certbot-dns-duckdns certbot-dns-cloudflare certbot-nginx $pip_opts || true;fi; \
   [ -f "/usr/share/zoneinfo/${TZ}" ] && ln -sf "/usr/share/zoneinfo/${TZ}" "/etc/localtime" || true; \
   [ -n "$PHP_BIN" ] && [ -z "$(command -v php 2>/dev/null)" ] && ln -sf "$PHP_BIN" "/usr/bin/php" 2>/dev/null || true; \
   [ -n "$PHP_FPM" ] && [ -z "$(command -v php-fpm 2>/dev/null)" ] && ln -sf "$PHP_FPM" "/usr/bin/php-fpm" 2>/dev/null || true; \
   if [ -f "/etc/profile.d/color_prompt.sh.disabled" ]; then mv -f "/etc/profile.d/color_prompt.sh.disabled" "/etc/profile.d/color_prompt.sh";fi ; \
   { [ -f "/etc/bash/bashrc" ] && cp -Rf "/etc/bash/bashrc" "/root/.bashrc"; } || { [ -f "/etc/bashrc" ] && cp -Rf "/etc/bashrc" "/root/.bashrc"; } || { [ -f "/etc/bash.bashrc" ] && cp -Rf "/etc/bash.bashrc" "/root/.bashrc"; } || true; \
-  if [ -z "$(command -v "apt-get" 2>/dev/null)" ];then grep -s -q 'alias quit' "/root/.bashrc" || printf '# Profile\n\n%s\n%s\n%s\n' '. /etc/profile' '. /root/.profile' "alias quit='exit 0 2>/dev/null'" >>"/root/.bashrc"; fi; \
+  if [ -z "$(command -v "apt-get" 2>/dev/null)" ];then grep -sh -q 'alias quit' "/root/.bashrc" || printf '# Profile\n\n%s\n%s\n%s\n' '. /etc/profile' '. /root/.profile' "alias quit='exit 0 2>/dev/null'" >>"/root/.bashrc"; fi; \
   if [ "$PHP_VERSION" != "system" ] && [ -e "/etc/php" ] && [ -d "/etc/${PHP_VERSION}" ];then rm -Rf "/etc/php";fi; \
   if [ "$PHP_VERSION" != "system" ] && [ -n "${PHP_VERSION}" ] && [ -d "/etc/${PHP_VERSION}" ];then ln -sf "/etc/${PHP_VERSION}" "/etc/php";fi; \
   if [ -f "/root/docker/setup/03-files.sh" ];then echo "Running the files script";/root/docker/setup/03-files.sh||{ echo "Failed to execute /root/docker/setup/03-files.sh" >&2 && exit 10; };echo "Done running the files script";fi; \
@@ -183,6 +186,7 @@ RUN echo "Deleting unneeded files"; \
 RUN echo "Init done"
 FROM scratch
 ARG TZ
+ARG PATH
 ARG USER
 ARG TIMEZONE
 ARG LANGUAGE
@@ -212,24 +216,25 @@ LABEL maintainer="CasjaysDev <docker-admin@casjaysdev.pro>"
 LABEL org.opencontainers.image.vendor="CasjaysDev"
 LABEL org.opencontainers.image.authors="CasjaysDev"
 LABEL org.opencontainers.image.description="Containerized version of ${IMAGE_NAME}"
-LABEL org.opencontainers.image.name="${IMAGE_NAME}"
+LABEL org.opencontainers.image.title="${IMAGE_NAME}"
 LABEL org.opencontainers.image.base.name="${IMAGE_NAME}"
-LABEL org.opencontainers.image.license="${LICENSE}"
-LABEL org.opencontainers.image.build-date="${BUILD_DATE}"
+LABEL org.opencontainers.image.authors="${LICENSE}"
+LABEL org.opencontainers.image.created="${BUILD_DATE}"
 LABEL org.opencontainers.image.version="${BUILD_VERSION}"
 LABEL org.opencontainers.image.schema-version="${BUILD_VERSION}"
-LABEL org.opencontainers.image.url="https://hub.docker.com/r/casjaysdevdocker/webmin"
-LABEL org.opencontainers.image.url.source="https://hub.docker.com/r/casjaysdevdocker/webmin"
+LABEL org.opencontainers.image.url="docker.io"
+LABEL org.opencontainers.image.source="docker.io"
 LABEL org.opencontainers.image.vcs-type="Git"
-LABEL org.opencontainers.image.vcs-ref="${BUILD_VERSION}"
-LABEL org.opencontainers.image.vcs-url="https://github.com/casjaysdevdocker/webmin"
+LABEL org.opencontainers.image.revision="${BUILD_VERSION}"
+LABEL org.opencontainers.image.source="https://github.com/casjaysdevdocker/webmin"
 LABEL org.opencontainers.image.documentation="https://github.com/casjaysdevdocker/webmin"
 LABEL com.github.containers.toolbox="false"
 
 ENV ENV=~/.bashrc
 ENV USER="${USER}"
-ENV SHELL="/bin/bash"
+ENV PATH="${PATH}"
 ENV TZ="${TIMEZONE}"
+ENV SHELL="/bin/bash"
 ENV TIMEZONE="${TZ}"
 ENV LANG="${LANGUAGE}"
 ENV TERM="xterm-256color"
@@ -250,6 +255,5 @@ VOLUME [ "/config","/data" ]
 
 EXPOSE ${SERVICE_PORT} ${ENV_PORTS}
 
-CMD [ "tail", "-f", "/dev/null" ]
-ENTRYPOINT [ "tini","--","/usr/local/bin/entrypoint.sh" ]
+ENTRYPOINT [ "tini","--","/usr/local/bin/entrypoint.sh" "start" ]
 HEALTHCHECK --start-period=10m --interval=5m --timeout=15s CMD [ "/usr/local/bin/entrypoint.sh", "healthcheck" ]
