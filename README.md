@@ -19,8 +19,8 @@ dockermgr update webmin
 ## Install and run container
   
 ```shell
-dockerHome="/var/lib/srv/$USER/docker/casjaysdevdocker/webmin/webmin/latest/rootfs"
-mkdir -p "/var/lib/srv/$USER/docker/webmin/rootfs"
+dockerHome="/srv/$USER/docker/casjaysdevdocker/webmin/webmin/latest/rootfs"
+mkdir -p "/srv/$USER/docker/webmin/rootfs"
 git clone "https://github.com/dockermgr/webmin" "$HOME/.local/share/CasjaysDev/dockermgr/webmin"
 cp -Rfva "$HOME/.local/share/CasjaysDev/dockermgr/webmin/rootfs/." "$dockerHome/"
 docker run -d \
@@ -47,8 +47,8 @@ services:
       - TZ=America/New_York
       - HOSTNAME=webmin
     volumes:
-      - "/var/lib/srv/$USER/docker/casjaysdevdocker/webmin/webmin/latest/rootfs/data:/data:z"
-      - "/var/lib/srv/$USER/docker/casjaysdevdocker/webmin/webmin/latest/rootfs/config:/config:z"
+      - "/srv/$USER/docker/casjaysdevdocker/webmin/webmin/latest/rootfs/data:/data:z"
+      - "/srv/$USER/docker/casjaysdevdocker/webmin/webmin/latest/rootfs/config:/config:z"
     ports:
       - 80:80
     restart: always
